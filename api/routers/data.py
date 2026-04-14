@@ -50,14 +50,36 @@ def _split_images(value) -> list[str]:
     return []
 
 
+def _normalize_media_url(value) -> str:
+    if not value:
+        return ""
+    url = str(value).strip()
+    if not url:
+        return ""
+    if url.startswith("//"):
+        return f"https:{url}"
+    if url.startswith("http://"):
+        return f"https://{url[len('http://'):]}"
+    return url
+
+
+def _normalize_media_urls(values: list[str]) -> list[str]:
+    normalized: list[str] = []
+    for value in values:
+        url = _normalize_media_url(value)
+        if url:
+            normalized.append(url)
+    return normalized
+
+
 def _normalize_xhs_note(item: dict) -> dict:
-    image_urls = _split_images(item.get("image_list"))
+    image_urls = _normalize_media_urls(_split_images(item.get("image_list")))
     return {
         "note_id": str(item.get("note_id", "")),
         "title": item.get("title", "") or "",
         "desc": item.get("desc", "") or "",
         "nickname": item.get("nickname", "") or "",
-        "avatar": item.get("avatar", "") or "",
+        "avatar": _normalize_media_url(item.get("avatar", "") or ""),
         "liked_count": _to_int(item.get("liked_count")),
         "collected_count": _to_int(item.get("collected_count")),
         "comment_count": _to_int(item.get("comment_count")),
@@ -66,7 +88,7 @@ def _normalize_xhs_note(item: dict) -> dict:
         "note_url": item.get("note_url", "") or "",
         "source_keyword": item.get("source_keyword", "") or "",
         "type": item.get("type", "") or "",
-        "video_url": item.get("video_url", "") or "",
+        "video_url": _normalize_media_url(item.get("video_url", "") or ""),
         "image_urls": image_urls,
         "cover": image_urls[0] if image_urls else "",
     }
@@ -198,7 +220,7 @@ def _load_search_comments_from_file(file_path: Path) -> list[dict]:
                 "note_id": str(item.get("note_id", "")),
                 "content": item.get("content", "") or "",
                 "nickname": item.get("nickname", "") or "",
-                "avatar": item.get("avatar", "") or "",
+                "avatar": _normalize_media_url(item.get("avatar", "") or ""),
                 "like_count": _to_int(item.get("like_count")),
                 "sub_comment_count": _to_int(item.get("sub_comment_count")),
                 "create_time": _to_int(item.get("create_time")),

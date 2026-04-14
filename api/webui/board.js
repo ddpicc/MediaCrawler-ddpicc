@@ -53,6 +53,15 @@ function dayDiff(ts) {
   return Math.floor((now - t) / (24 * 3600 * 1000));
 }
 
+function toHttpsUrl(url) {
+  if (!url) return "";
+  const s = String(url).trim();
+  if (!s) return "";
+  if (s.startsWith("//")) return `https:${s}`;
+  if (s.startsWith("http://")) return `https://${s.slice(7)}`;
+  return s;
+}
+
 function createMetric(k, v) {
   const node = document.createElement("div");
   node.className = "metric";
@@ -105,13 +114,25 @@ function mountCard(item) {
   time.textContent = fmtTime(item.time);
 
   function syncImage() {
-    const src = images[idx] || "";
+    const src = toHttpsUrl(images[idx] || "");
     cover.src = src;
     cover.style.opacity = src ? "1" : "0.35";
+    cover.dataset.retried = "0";
     counter.textContent = `${idx + 1}/${images.length}`;
     prev.style.display = images.length > 1 ? "block" : "none";
     next.style.display = images.length > 1 ? "block" : "none";
   }
+
+  cover.addEventListener("error", () => {
+    const current = String(cover.src || "");
+    const fallback = toHttpsUrl(current);
+    if (cover.dataset.retried !== "1" && fallback && fallback !== current) {
+      cover.dataset.retried = "1";
+      cover.src = fallback;
+      return;
+    }
+    cover.style.opacity = "0.35";
+  });
 
   prev.addEventListener("click", (ev) => {
     ev.stopPropagation();
