@@ -75,6 +75,15 @@ async def serve_frontend():
     }
 
 
+@app.get("/board")
+async def serve_board():
+    """Return board page for search_contents card view"""
+    board_path = os.path.join(WEBUI_DIR, "board.html")
+    if os.path.exists(board_path):
+        return FileResponse(board_path)
+    return {"message": "Board page not found"}
+
+
 @app.get("/api/health")
 async def health_check():
     return {"status": "ok"}

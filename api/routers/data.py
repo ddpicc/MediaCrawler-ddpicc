@@ -20,6 +20,7 @@ import os
 import json
 from pathlib import Path
 from typing import Optional
+from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
@@ -28,6 +29,184 @@ router = APIRouter(prefix="/data", tags=["data"])
 
 # Data directory
 DATA_DIR = Path(__file__).parent.parent.parent / "data"
+
+
+def _to_int(value, default: int = 0) -> int:
+    try:
+        if value is None or value == "":
+            return default
+        return int(value)
+    except Exception:
+        return default
+
+
+def _split_images(value) -> list[str]:
+    if not value:
+        return []
+    if isinstance(value, list):
+        return [str(item) for item in value if item]
+    if isinstance(value, str):
+        return [item.strip() for item in value.split(",") if item.strip()]
+    return []
+
+
+def _normalize_xhs_note(item: dict) -> dict:
+    image_urls = _split_images(item.get("image_list"))
+    return {
+        "note_id": str(item.get("note_id", "")),
+        "title": item.get("title", "") or "",
+        "desc": item.get("desc", "") or "",
+        "nickname": item.get("nickname", "") or "",
+        "avatar": item.get("avatar", "") or "",
+        "liked_count": _to_int(item.get("liked_count")),
+        "collected_count": _to_int(item.get("collected_count")),
+        "comment_count": _to_int(item.get("comment_count")),
+        "share_count": _to_int(item.get("share_count")),
+        "time": _to_int(item.get("time")),
+        "note_url": item.get("note_url", "") or "",
+        "source_keyword": item.get("source_keyword", "") or "",
+        "type": item.get("type", "") or "",
+        "video_url": item.get("video_url", "") or "",
+        "image_urls": image_urls,
+        "cover": image_urls[0] if image_urls else "",
+    }
+
+
+def _load_search_contents_from_file(file_path: Path) -> list[dict]:
+    suffix = file_path.suffix.lower()
+    records: list[dict] = []
+
+    if suffix == ".json":
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                records = data
+            elif isinstance(data, dict):
+                records = [data]
+    elif suffix == ".jsonl":
+        with open(file_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    records.append(json.loads(line))
+                except Exception:
+                    continue
+    elif suffix == ".csv":
+        import csv
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            records = list(reader)
+    else:
+        return []
+
+    return [_normalize_xhs_note(item) for item in records if isinstance(item, dict)]
+
+
+def _find_latest_search_contents_file() -> Optional[Path]:
+    if not DATA_DIR.exists():
+        return None
+
+    candidates: list[Path] = []
+    for root, _, filenames in os.walk(DATA_DIR):
+        root_path = Path(root)
+        for filename in filenames:
+            file_path = root_path / filename
+            rel = str(file_path.relative_to(DATA_DIR)).lower()
+            if "xhs" not in rel:
+                continue
+            if "search_contents" not in file_path.name.lower():
+                continue
+            if file_path.suffix.lower() not in {".json", ".jsonl", ".csv"}:
+                continue
+            candidates.append(file_path)
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    return candidates[0]
+
+
+def _extract_run_token(name: str, prefix: str) -> Optional[str]:
+    lower = name.lower()
+    ext = Path(name).suffix.lower()
+    if not lower.startswith(prefix) or ext not in {".json", ".jsonl", ".csv"}:
+        return None
+    return name[len(prefix): -len(ext)]
+
+
+def _find_matching_search_comments_file(contents_file: Path) -> Optional[Path]:
+    token = _extract_run_token(contents_file.name, "search_contents_")
+    if not token:
+        return None
+
+    # Prefer same directory and same extension first
+    ext = contents_file.suffix.lower()
+    direct = contents_file.parent / f"search_comments_{token}{ext}"
+    if direct.exists() and direct.is_file():
+        return direct
+
+    # Fallback to any supported extension in same directory
+    for suffix in (".json", ".jsonl", ".csv"):
+        candidate = contents_file.parent / f"search_comments_{token}{suffix}"
+        if candidate.exists() and candidate.is_file():
+            return candidate
+
+    return None
+
+
+def _load_search_comments_from_file(file_path: Path) -> list[dict]:
+    suffix = file_path.suffix.lower()
+    records: list[dict] = []
+
+    if suffix == ".json":
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                records = data
+            elif isinstance(data, dict):
+                records = [data]
+    elif suffix == ".jsonl":
+        with open(file_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    records.append(json.loads(line))
+                except Exception:
+                    continue
+    elif suffix == ".csv":
+        import csv
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            records = list(reader)
+    else:
+        return []
+
+    normalized: list[dict] = []
+    for item in records:
+        if not isinstance(item, dict):
+            continue
+        normalized.append(
+            {
+                "comment_id": str(item.get("comment_id", "")),
+                "note_id": str(item.get("note_id", "")),
+                "content": item.get("content", "") or "",
+                "nickname": item.get("nickname", "") or "",
+                "avatar": item.get("avatar", "") or "",
+                "like_count": _to_int(item.get("like_count")),
+                "sub_comment_count": _to_int(item.get("sub_comment_count")),
+                "create_time": _to_int(item.get("create_time")),
+                "ip_location": item.get("ip_location", "") or "",
+                "parent_comment_id": str(item.get("parent_comment_id", "")),
+            }
+        )
+    return normalized
 
 
 def get_file_info(file_path: Path) -> dict:
@@ -228,3 +407,68 @@ async def get_data_stats():
                 continue
 
     return stats
+
+
+@router.get("/search_contents")
+async def get_search_contents(file_path: Optional[str] = None, limit: int = 200):
+    """Get normalized xhs search contents for board page."""
+    target_file: Optional[Path] = None
+
+    if file_path:
+        candidate = DATA_DIR / file_path
+        if not candidate.exists() or not candidate.is_file():
+            raise HTTPException(status_code=404, detail="File not found")
+        try:
+            candidate.resolve().relative_to(DATA_DIR.resolve())
+        except ValueError:
+            raise HTTPException(status_code=403, detail="Access denied")
+        target_file = candidate
+    else:
+        target_file = _find_latest_search_contents_file()
+        if target_file is None:
+            return {"items": [], "total": 0, "source_file": None, "generated_at": datetime.now().isoformat()}
+
+    items = _load_search_contents_from_file(target_file)
+    items.sort(key=lambda x: x.get("time", 0), reverse=True)
+
+    safe_limit = max(1, min(limit, 1000))
+    comments_file = _find_matching_search_comments_file(target_file)
+    return {
+        "items": items[:safe_limit],
+        "total": len(items),
+        "source_file": str(target_file.relative_to(DATA_DIR)),
+        "comments_file": str(comments_file.relative_to(DATA_DIR)) if comments_file else None,
+        "generated_at": datetime.now().isoformat(),
+    }
+
+
+@router.get("/search_comments")
+async def get_search_comments(contents_file_path: str, note_id: str, limit: int = 300):
+    """Get note comments for board detail pane."""
+    if not contents_file_path:
+        raise HTTPException(status_code=400, detail="contents_file_path is required")
+    if not note_id:
+        raise HTTPException(status_code=400, detail="note_id is required")
+
+    contents_file = DATA_DIR / contents_file_path
+    if not contents_file.exists() or not contents_file.is_file():
+        raise HTTPException(status_code=404, detail="Contents file not found")
+    try:
+        contents_file.resolve().relative_to(DATA_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    comments_file = _find_matching_search_comments_file(contents_file)
+    if comments_file is None:
+        return {"items": [], "total": 0, "source_file": None}
+
+    comments = _load_search_comments_from_file(comments_file)
+    filtered = [it for it in comments if str(it.get("note_id", "")) == str(note_id)]
+    filtered.sort(key=lambda x: x.get("create_time", 0), reverse=True)
+
+    safe_limit = max(1, min(limit, 1000))
+    return {
+        "items": filtered[:safe_limit],
+        "total": len(filtered),
+        "source_file": str(comments_file.relative_to(DATA_DIR)),
+    }

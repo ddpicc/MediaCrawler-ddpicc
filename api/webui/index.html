@@ -1,17 +1,152 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MediaCrawler - Command Center</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/assets/index-DvClRayq.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-OiBmsgXF.css">
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MediaCrawler XHS 控制台</title>
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  <div class="bg-layer"></div>
+  <main class="layout">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">MediaCrawler</p>
+        <h1>XHS 采集控制台</h1>
+        <p class="sub">仅面向小红书平台，支持任务启动/停止、实时日志和数据文件预览。</p>
+      </div>
+      <div class="status-card">
+        <p class="label">任务状态</p>
+        <p id="statusText" class="status idle">idle</p>
+        <p id="statusMeta" class="meta">尚未运行任务</p>
+      </div>
+    </header>
+
+    <section class="grid">
+      <article class="panel">
+        <div class="panel-head">
+          <h2>任务配置（XHS）</h2>
+          <button id="checkEnvBtn" class="ghost">环境检查</button>
+        </div>
+
+        <form id="crawlerForm" class="form-grid">
+          <input type="hidden" name="platform" value="xhs" />
+
+          <label>
+            登录方式
+            <select name="login_type" id="loginType">
+              <option value="qrcode">qrcode</option>
+              <option value="cookie">cookie</option>
+              <option value="phone">phone</option>
+            </select>
+          </label>
+
+          <label>
+            抓取模式
+            <select name="crawler_type" id="crawlerType">
+              <option value="search">search（关键词）</option>
+              <option value="detail">detail（指定笔记）</option>
+              <option value="creator">creator（指定博主）</option>
+            </select>
+          </label>
+
+          <label class="full" id="keywordsGroup">
+            关键词（英文逗号分隔）
+            <input name="keywords" placeholder="如：编程副业,程序员兼职" />
+          </label>
+
+          <label class="full hidden" id="detailGroup">
+            指定笔记 ID / URL（英文逗号分隔）
+            <textarea name="specified_ids" rows="2" placeholder="可填 note_id 或完整 URL"></textarea>
+          </label>
+
+          <label class="full hidden" id="creatorGroup">
+            指定博主 ID / URL（英文逗号分隔）
+            <textarea name="creator_ids" rows="2" placeholder="可填 creator_id 或完整 URL"></textarea>
+          </label>
+
+          <label>
+            起始页
+            <input type="number" min="1" value="1" name="start_page" />
+          </label>
+
+          <label>
+            最大笔记数
+            <input type="number" min="1" value="15" name="crawler_max_notes_count" />
+          </label>
+
+          <label>
+            存储格式
+            <select name="save_option">
+              <option value="jsonl">jsonl</option>
+              <option value="json">json</option>
+              <option value="csv">csv</option>
+              <option value="excel">excel</option>
+              <option value="sqlite">sqlite</option>
+              <option value="db">db</option>
+              <option value="mongodb">mongodb</option>
+            </select>
+          </label>
+
+          <label class="full hidden" id="cookiesGroup">
+            Cookies（cookie 登录时可填）
+            <textarea name="cookies" rows="2" placeholder="完整 cookie 字符串"></textarea>
+          </label>
+
+          <div class="checks full">
+            <label class="check"><input type="checkbox" name="enable_comments" checked /> 抓取一级评论</label>
+            <label class="check"><input type="checkbox" name="enable_sub_comments" /> 抓取二级评论</label>
+            <label class="check"><input type="checkbox" name="headless" /> 无头模式</label>
+          </div>
+
+          <div class="actions full">
+            <button type="button" id="startBtn" class="primary">启动任务</button>
+            <button type="button" id="stopBtn" class="danger">停止任务</button>
+            <button type="button" id="syncStatusBtn" class="ghost">刷新状态</button>
+          </div>
+        </form>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <h2>实时日志</h2>
+          <div class="log-actions">
+            <button id="reconnectLogsBtn" class="ghost">重连日志</button>
+            <button id="clearLogsBtn" class="ghost">清空展示</button>
+          </div>
+        </div>
+        <div id="logList" class="log-list"></div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>数据文件（xhs）</h2>
+        <div class="log-actions">
+          <button id="refreshFilesBtn" class="ghost">刷新列表</button>
+          <button id="refreshStatsBtn" class="ghost">刷新统计</button>
+        </div>
+      </div>
+      <div id="stats" class="stats"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>文件</th>
+              <th>类型</th>
+              <th>记录数</th>
+              <th>大小</th>
+              <th>更新时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="filesBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="/static/app.js"></script>
+</body>
 </html>

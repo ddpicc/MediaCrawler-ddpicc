@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>XHS 内容看板</title>
+  <link rel="stylesheet" href="/static/board.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">CREATOR FEED</p>
+        <h1>自媒体监测看板</h1>
+      </div>
+      <div class="source-pill" id="sourceFile">当前内容来源：-</div>
+    </header>
+
+    <section class="filters">
+      <div class="field">
+        <label>日期</label>
+        <select id="dateFilter">
+          <option value="all">全部时间</option>
+          <option value="today">今天</option>
+          <option value="7d">近7天</option>
+          <option value="30d">近30天</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>排序</label>
+        <select id="sortBy">
+          <option value="time_desc">最新发布</option>
+          <option value="liked_desc">点赞最多</option>
+          <option value="comment_desc">评论最多</option>
+          <option value="share_desc">分享最多</option>
+          <option value="collect_desc">收藏最多</option>
+        </select>
+      </div>
+      <button id="resetBtn" class="ghost">重置筛选</button>
+      <a class="ghost" href="/">返回控制台</a>
+      <div class="summary" id="summaryText">已显示 0/0 篇</div>
+    </section>
+
+    <section class="board-layout">
+      <div class="card-pane" id="cardGrid"></div>
+
+      <aside class="detail-pane" id="detailPane">
+        <div class="detail-head">
+          <h2 id="detailTitle">请选择一条笔记</h2>
+          <a id="detailLink" class="ghost small" target="_blank" rel="noreferrer" href="#">打开原文</a>
+        </div>
+        <p id="detailMeta" class="detail-meta">-</p>
+        <p id="detailDesc" class="detail-desc">左侧点击卡片后，这里会显示完整文案内容。</p>
+
+        <div class="comments-head">
+          <h3>评论</h3>
+          <span id="commentsMeta" class="comments-meta">-</span>
+        </div>
+        <div id="commentsList" class="comments-list">
+          <div class="empty">暂无评论数据</div>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <template id="cardTpl">
+    <article class="card">
+      <div class="card-head">
+        <span class="platform">📕</span>
+        <span class="time"></span>
+      </div>
+      <h3 class="title"></h3>
+      <p class="desc"></p>
+      <div class="slider">
+        <button class="nav prev">‹</button>
+        <img class="cover" alt="cover" />
+        <button class="nav next">›</button>
+        <div class="counter"></div>
+      </div>
+      <div class="metrics"></div>
+    </article>
+  </template>
+
+  <template id="commentTpl">
+    <article class="comment-item">
+      <div class="comment-head">
+        <span class="comment-user"></span>
+        <span class="comment-time"></span>
+      </div>
+      <p class="comment-content"></p>
+      <div class="comment-foot">
+        <span class="comment-like"></span>
+        <span class="comment-sub"></span>
+      </div>
+    </article>
+  </template>
+
+  <script src="/static/board.js"></script>
+</body>
+</html>
