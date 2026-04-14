@@ -20,6 +20,8 @@ import asyncio
 import subprocess
 import signal
 import os
+import sys
+import shutil
 from typing import Optional, List
 from datetime import datetime
 from pathlib import Path
@@ -204,7 +206,12 @@ class CrawlerManager:
 
     def _build_command(self, config: CrawlerStartRequest) -> list:
         """Build main.py command line arguments"""
-        cmd = ["uv", "run", "python", "main.py"]
+        uv_bin = shutil.which("uv")
+        if uv_bin:
+            cmd = [uv_bin, "run", "python", "main.py"]
+        else:
+            # Fallback for environments without uv (e.g. some cloud runtimes)
+            cmd = [sys.executable, "main.py"]
 
         cmd.extend(["--platform", config.platform.value])
         cmd.extend(["--lt", config.login_type.value])
