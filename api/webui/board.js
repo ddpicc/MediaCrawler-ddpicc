@@ -62,6 +62,14 @@ function toHttpsUrl(url) {
   return s;
 }
 
+function toProxyImageUrl(url) {
+  const raw = toHttpsUrl(url);
+  if (!raw) return "";
+  const endpoint = new URL("/api/data/proxy_image", window.location.origin);
+  endpoint.searchParams.set("url", raw);
+  return endpoint.toString();
+}
+
 function createMetric(k, v) {
   const node = document.createElement("div");
   node.className = "metric";
@@ -114,23 +122,15 @@ function mountCard(item) {
   time.textContent = fmtTime(item.time);
 
   function syncImage() {
-    const src = toHttpsUrl(images[idx] || "");
+    const src = toProxyImageUrl(images[idx] || "");
     cover.src = src;
     cover.style.opacity = src ? "1" : "0.35";
-    cover.dataset.retried = "0";
     counter.textContent = `${idx + 1}/${images.length}`;
     prev.style.display = images.length > 1 ? "block" : "none";
     next.style.display = images.length > 1 ? "block" : "none";
   }
 
   cover.addEventListener("error", () => {
-    const current = String(cover.src || "");
-    const fallback = toHttpsUrl(current);
-    if (cover.dataset.retried !== "1" && fallback && fallback !== current) {
-      cover.dataset.retried = "1";
-      cover.src = fallback;
-      return;
-    }
     cover.style.opacity = "0.35";
   });
 

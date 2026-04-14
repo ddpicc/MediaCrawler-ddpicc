@@ -18,12 +18,14 @@
 
 import os
 import json
+import requests
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 router = APIRouter(prefix="/data", tags=["data"])
 
@@ -70,6 +72,18 @@ def _normalize_media_urls(values: list[str]) -> list[str]:
         if url:
             normalized.append(url)
     return normalized
+
+
+def _is_safe_image_url(value: str) -> bool:
+    if not value:
+        return False
+    try:
+        parsed = urlparse(value)
+    except Exception:
+        return False
+    if parsed.scheme not in {"http", "https"}:
+        return False
+    return bool(parsed.netloc)
 
 
 def _normalize_xhs_note(item: dict) -> dict:
@@ -494,3 +508,35 @@ async def get_search_comments(contents_file_path: str, note_id: str, limit: int 
         "total": len(filtered),
         "source_file": str(comments_file.relative_to(DATA_DIR)),
     }
+
+
+@router.get("/proxy_image")
+async def proxy_image(url: str):
+    """Proxy remote images for board rendering in cloud/https env."""
+    normalized_url = _normalize_media_url(url)
+    if not _is_safe_image_url(normalized_url):
+        raise HTTPException(status_code=400, detail="Invalid image url")
+
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Referer": "https://www.xiaohongshu.com/",
+    }
+
+    try:
+        resp = requests.get(normalized_url, headers=headers, timeout=15)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Image fetch failed: {str(e)}")
+
+    if resp.status_code >= 400:
+        raise HTTPException(status_code=resp.status_code, detail="Image fetch failed")
+
+    content_type = resp.headers.get("content-type", "image/jpeg")
+    cache_control = resp.headers.get("cache-control", "public, max-age=3600")
+    return Response(
+        content=resp.content,
+        media_type=content_type,
+        headers={"Cache-Control": cache_control},
+    )
