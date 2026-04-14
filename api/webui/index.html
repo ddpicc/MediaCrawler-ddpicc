@@ -74,18 +74,7 @@
             <input type="number" min="1" value="15" name="crawler_max_notes_count" />
           </label>
 
-          <label>
-            存储格式
-            <select name="save_option">
-              <option value="jsonl">jsonl</option>
-              <option value="json">json</option>
-              <option value="csv">csv</option>
-              <option value="excel">excel</option>
-              <option value="sqlite">sqlite</option>
-              <option value="db">db</option>
-              <option value="mongodb">mongodb</option>
-            </select>
-          </label>
+          <input type="hidden" name="save_option" value="json" />
 
           <label class="full hidden" id="cookiesGroup">
             Cookies（cookie 登录时可填）

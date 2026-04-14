@@ -209,7 +209,7 @@ function getFormData() {
     crawler_max_notes_count: Math.max(1, Number(raw.get("crawler_max_notes_count") || 15)),
     enable_comments: raw.get("enable_comments") === "on",
     enable_sub_comments: raw.get("enable_sub_comments") === "on",
-    save_option: String(raw.get("save_option") || "jsonl"),
+    save_option: "json",
     cookies: String(raw.get("cookies") || "").trim(),
     headless: true,
   };
