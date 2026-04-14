@@ -200,7 +200,7 @@ function getFormData() {
   const raw = new FormData(els.form);
   return {
     platform: "xhs",
-    login_type: String(raw.get("login_type") || "qrcode"),
+    login_type: String(raw.get("login_type") || "cookie"),
     crawler_type: String(raw.get("crawler_type") || "search"),
     keywords: String(raw.get("keywords") || "").trim(),
     specified_ids: String(raw.get("specified_ids") || "").trim(),
@@ -211,7 +211,7 @@ function getFormData() {
     enable_sub_comments: raw.get("enable_sub_comments") === "on",
     save_option: String(raw.get("save_option") || "jsonl"),
     cookies: String(raw.get("cookies") || "").trim(),
-    headless: raw.get("headless") === "on",
+    headless: true,
   };
 }
 
