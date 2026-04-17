@@ -402,6 +402,31 @@ async def download_file(file_path: str):
     )
 
 
+@router.delete("/files/{file_path:path}")
+async def delete_file(file_path: str):
+    """Delete a data file"""
+    full_path = DATA_DIR / file_path
+
+    if not full_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    if not full_path.is_file():
+        raise HTTPException(status_code=400, detail="Not a file")
+
+    # Security check
+    try:
+        full_path.resolve().relative_to(DATA_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    try:
+        full_path.unlink()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Delete failed: {str(e)}")
+
+    return {"success": True, "message": "File deleted", "path": file_path}
+
+
 @router.get("/stats")
 async def get_data_stats():
     """Get data statistics"""

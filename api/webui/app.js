@@ -236,6 +236,61 @@ async function api(path, options = {}) {
   return body;
 }
 
+async function deleteDataFile(path) {
+  if (!path) return;
+  await api(`/api/data/files/${encodeURI(path)}`, { method: "DELETE", headers: {} });
+}
+
+async function bindFileDeleteActions() {
+  els.filesBody.querySelectorAll(".js-del-file").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const path = decodeURIComponent(btn.dataset.path || "");
+      if (!path) return;
+      if (!window.confirm(`确认删除文件？\n${path}`)) return;
+
+      btn.disabled = true;
+      try {
+        await deleteDataFile(path);
+        toast("文件已删除");
+        await refreshFiles();
+        await refreshStats();
+      } catch (err) {
+        toast(`删除失败: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+
+  els.filesBody.querySelectorAll(".js-del-board").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const contentsPath = decodeURIComponent(btn.dataset.contents || "");
+      const commentsPath = decodeURIComponent(btn.dataset.comments || "");
+      if (!contentsPath) return;
+      if (!window.confirm(`确认删除该批次文件？\n${contentsPath}${commentsPath ? `\n${commentsPath}` : ""}`)) return;
+
+      btn.disabled = true;
+      try {
+        await deleteDataFile(contentsPath);
+        if (commentsPath) {
+          try {
+            await deleteDataFile(commentsPath);
+          } catch {
+            // ignore comment deletion failure to keep contents deletion effective
+          }
+        }
+        toast("批次文件已删除");
+        await refreshFiles();
+        await refreshStats();
+      } catch (err) {
+        toast(`删除失败: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
 async function startCrawler() {
   const payload = getFormData();
 
@@ -312,6 +367,7 @@ async function refreshFiles() {
       if (row.kind === "board") {
         const f = row.contents;
         const fileLabel = `看板批次 ${row.token}`;
+        const commentsPath = row.comments?.path || "";
         tr.innerHTML = `
           <td>${escapeHtml(fileLabel)}</td>
           <td>board</td>
@@ -321,6 +377,7 @@ async function refreshFiles() {
           <td>
             <a class="ghost" href="/board?file=${encodeURIComponent(f.path)}">进入看板</a>
             <a class="ghost" href="/api/data/download/${encodeURI(f.path)}" target="_blank" rel="noreferrer">下载内容</a>
+            <button type="button" class="ghost js-del-board" data-contents="${encodeURIComponent(f.path)}" data-comments="${encodeURIComponent(commentsPath)}">删除批次</button>
           </td>
         `;
         els.filesBody.appendChild(tr);
@@ -336,10 +393,13 @@ async function refreshFiles() {
         <td>${formatDate(f.modified_at)}</td>
         <td>
           <a class="ghost" href="/api/data/download/${encodeURI(f.path)}" target="_blank" rel="noreferrer">下载</a>
+          <button type="button" class="ghost js-del-file" data-path="${encodeURIComponent(f.path)}">删除</button>
         </td>
       `;
       els.filesBody.appendChild(tr);
     }
+
+    await bindFileDeleteActions();
 
     if (!rows || rows.length === 0) {
       const tr = document.createElement("tr");
